@@ -1,5 +1,4 @@
-- include: facts.yml
-  static: no
+- include_tasks: facts.yml
 
 - name: Create configuration directory
   file: path={{ mysql_etc_d }} state=directory owner=root group=root mode=755
@@ -8,8 +7,7 @@
 - name: mysql configuration
   template: src=optimization.cnf.j2 dest={{ mysql_etc_d }}/zz_00_optimization.cnf
 
-- include: "{{ mysql_type }}-apt.yml"
-  static: no
+- include_tasks: "{{ mysql_type }}-apt.yml"
   when: ansible_pkg_mgr == "apt"
 
 - name: Fetch root password
