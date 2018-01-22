@@ -1,0 +1,241 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+DOCUMENTATION = '''
+module: sqledit
+short_description: Insert/Update/Delete records in an sql database
+requirements:
+  - python-sqlalchemy
+  - python-mysqldb
+  - python-psycopg2
+options:
+  name:
+    description: Specify sqlalchemy URL
+    required: true
+    aliases:
+      - url
+      - db
+  table:
+    description: Specify table name
+    required: true
+  keys:
+    description: >
+                   Specify which columns should be used for where statement
+                   and not for updating the table
+                   Alle columns specified by keys are required.
+    required: true
+  columns:
+    descriptions: >
+                    Specify columsn for the query
+                    COLUMNNAME|TYPE=VALUE
+                    or for select querys
+                    COLUMNNAME|TYPE
+                    All columns are space separated
+    required: false
+  state:
+    description: >
+                   present = insert/update, absent = delete,
+                   select = fetch columns
+    required: false
+    default: present
+'''
+
+EXAMPLES = '''
+- sqledit: name="mysql://localhost/test?read_default_file=/root/.my.cnf" table=test keys=col1 columns='col1|String=blubb col2|Integer=1'
+- sqledit: name="mysql://localhost/test?read_default_file=/root/.my.cnf" table=test keys=col1 columns='col1|String=blubb col2|Integer' state=select
+- sqledit: name="mysql://localhost/test?read_default_file=/root/.my.cnf" table=test keys=col1 columns='col1|String=blubb' state=absent
+- sqledit: name="mysql://localhost/test?read_default_file=/root/.my.cnf" table=test2 keys=col1,col2 columns='col1|String=blubb col2|Integer=1 col3|String=dadada'
+'''
+
+
+import datetime
+try:
+    import sqlalchemy
+    HAS_SQLALCHEMY = True
+except ImportError:
+    HAS_SQLALCHEMY = False
+import shlex
+
+from ansible.module_utils.basic import *
+
+
+TYPE_FOR_NAME = {
+    'String': {
+        'sqlalchemy': sqlalchemy.String,
+        'python': lambda x: str(x),
+    },
+    'Integer': {
+        'sqlalchemy': sqlalchemy.Integer,
+        'python': lambda x: int(x),
+    },
+    'BigInteger': {
+        'sqlalchemy': sqlalchemy.BigInteger,
+        'python': lambda x: int(x),
+    },
+    'Boolean': {
+        'sqlalchemy': sqlalchemy.Boolean,
+        'python': lambda x: bool(x),
+    },
+    'Date': {
+        'sqlalchemy': sqlalchemy.Date,
+        'python': lambda x: datetime.strptime(x).date(),
+    },
+    'DateTime': {
+        'sqlalchemy': sqlalchemy.DateTime,
+        'python': lambda x: datetime.strptime(x, '%Y-%M-%d %H:%m:%S'),
+    },
+    'Text': {
+        'sqlalchemy': sqlalchemy.Text,
+        'python': lambda x: str(x),
+    },
+}
+
+
+class SQLEdit(AnsibleModule):
+
+    def __init__(self):
+        super(SQLEdit, self).__init__(
+            argument_spec=dict(
+                name=dict(required=True, aliases=['db', 'url']),
+                table=dict(required=True, aliases=['tb']),
+                keys=dict(required=True, aliases=['pk'], type='list'),
+                columns=dict(required=True, type='list'),
+                state=dict(default='present',
+                           choices=['present', 'absent', 'select']),
+            ),
+            supports_check_mode=True)
+        if not HAS_SQLALCHEMY:
+            module.fail_json('python-sqlalchemy not found')
+        self.init_sqlalchemy()
+        self.create_table()
+        rows_after = self.select_rows()
+        rows_after_len = len(rows_after)
+        if self.params['state'] == 'select':
+            stmt = self.table.select()
+            stmt = self.where_keys(stmt)
+            self.exit_json(changed=False,
+                           stmt=str(stmt),
+                           rows=self.format_rows(rows_after))
+        elif self.params['state'] == 'absent':
+            if rows_after_len < 1:
+                changed = False
+            else:
+                changed = True
+            if changed and not self.check_mode:
+                self.delete_rows()
+            self.exit_json(changed=changed, rows=None)
+        else:
+            if rows_after_len < 1:
+                changed = True
+            else:
+                changed = self.compare_rows(rows_after)
+            if self.check_mode:
+                rows_after = self.new_values
+            elif changed:
+                if rows_after_len < 1:
+                    self.insert_row()
+                else:
+                    self.update_rows()
+                rows_after = self.select_rows()
+            self.exit_json(changed=changed,
+                           rows=self.format_rows(rows_after))
+
+    def format_rows(self, rows):
+        frows = []
+        for row in rows:
+            frow = {}
+            for col in row.keys():
+                type_func = self.type_for_column[col]['python']
+                value = row[col]
+                if value is not None:
+                    frow[col] = type_func(value)
+                else:
+                    frow[col] = value
+            frows.append(frow)
+        return frows
+
+    def compare_rows(self, rows):
+        for row in rows:
+            for col in self.new_values:
+                if self.new_values[col] != row[col]:
+                    return True
+        return False
+
+    def select_rows(self):
+        stmt = self.table.select()
+        stmt = self.where_keys(stmt)
+        result = stmt.execute()
+        return [row for row in result]
+
+    def insert_row(self):
+        stmt = self.table.insert()
+        stmt = stmt.values(**self.new_values)
+        stmt.execute()
+
+    def update_rows(self):
+        stmt = self.table.update()
+        stmt = self.where_keys(stmt)
+        args = {}
+        for col in self.new_values:
+            if col not in self.keys:
+                args[col] = self.new_values[col]
+        stmt = stmt.values(**args)
+        stmt.execute()
+
+    def delete_rows(self):
+        stmt = self.table.delete()
+        stmt = self.where_keys(stmt)
+        stmt.execute()
+
+    def init_sqlalchemy(self):
+        self.engine = sqlalchemy.create_engine(name_or_url=self.params['name'])
+        self.metadata = sqlalchemy.MetaData()
+        self.metadata.bind = self.engine
+
+    def create_table(self):
+        self.keys = self.params['keys']
+        self.new_values = {}
+        self.type_for_column = {}
+
+        columns = []
+        for arg in self.params['columns']:
+            column_name = arg['name']
+            type_name = arg['type']
+            try:
+                value = arg['value']
+                value_exists = True
+            except KeyError:
+                value = None
+                value_exists = False
+            args = {}
+            columns.append(sqlalchemy.Column(column_name,
+                           TYPE_FOR_NAME[type_name]['sqlalchemy'],
+                           **args))
+            if value is not None:
+                value = TYPE_FOR_NAME[type_name]['python'](value)
+            if value_exists:
+                self.new_values[column_name] = value
+            self.type_for_column[column_name] = \
+                TYPE_FOR_NAME[type_name]
+        self.table = sqlalchemy.Table(self.params['table'],
+                                      self.metadata,
+                                      *columns)
+
+    def where_keys(self, select):
+        args = []
+        for col in self.keys:
+            try:
+                key = getattr(self.table.c, col)
+                args.append(key == self.new_values[col])
+            except (AttributeError, KeyError) as e:
+                pass
+        if len(args) < 1:
+            return select
+        elif len(args) < 2:
+            return select.where(args[0])
+        else:
+            return select.where(sqlalchemy.sql.and_(*args))
+
+
+if __name__ == '__main__':
+    SQLEdit()
