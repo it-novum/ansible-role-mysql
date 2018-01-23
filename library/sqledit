@@ -41,10 +41,56 @@ options:
 '''
 
 EXAMPLES = '''
-- sqledit: name="mysql://localhost/test?read_default_file=/root/.my.cnf" table=test keys=col1 columns='col1|String=blubb col2|Integer=1'
-- sqledit: name="mysql://localhost/test?read_default_file=/root/.my.cnf" table=test keys=col1 columns='col1|String=blubb col2|Integer' state=select
-- sqledit: name="mysql://localhost/test?read_default_file=/root/.my.cnf" table=test keys=col1 columns='col1|String=blubb' state=absent
-- sqledit: name="mysql://localhost/test?read_default_file=/root/.my.cnf" table=test2 keys=col1,col2 columns='col1|String=blubb col2|Integer=1 col3|String=dadada'
+- sqledit:
+    name: "mysql://localhost/test?read_default_file=/root/.my.cnf"
+    table: test
+    keys:
+      - col1
+    columns:
+      - name: col1
+        type: String
+        value: blubb
+      - name: col2
+        type: Integer
+        value: 1
+- sqledit:
+    name: "mysql://localhost/test?read_default_file=/root/.my.cnf"
+    table: test
+    keys:
+      - col1
+    columns:
+      - name: col1
+        type: String
+        value: blubb
+      - name: col2
+        type: Integer
+    state: select
+- sqledit:
+    name: "mysql://localhost/test?read_default_file=/root/.my.cnf"
+    table: test
+    keys:
+      - col1
+    columns:
+      - name: col1
+        type: String
+        value: blubb
+    state: absent
+- sqledit:
+    name: "mysql://localhost/test?read_default_file=/root/.my.cnf"
+    table: test2
+    keys:
+      - col1
+      - col2
+    columns:
+      - name: col1
+        type: String
+        value: blubb
+      - name: col2
+        type: Integer
+        value: 1
+      - name: col3
+        type: String
+        value: dadada
 '''
 
 
