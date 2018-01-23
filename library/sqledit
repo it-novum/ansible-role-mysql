@@ -105,6 +105,14 @@ import shlex
 from ansible.module_utils.basic import *
 
 
+def to_datetime(x, date=False):
+    if not isinstance(x, datetime.datetime):  
+        x = datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+    if date:
+        return x.date()
+    return x
+
+
 TYPE_FOR_NAME = {
     'String': {
         'sqlalchemy': sqlalchemy.String,
@@ -124,11 +132,11 @@ TYPE_FOR_NAME = {
     },
     'Date': {
         'sqlalchemy': sqlalchemy.Date,
-        'python': lambda x: datetime.strptime(x).date(),
+        'python': lambda x: to_datetime(x, True),
     },
     'DateTime': {
         'sqlalchemy': sqlalchemy.DateTime,
-        'python': lambda x: datetime.strptime(x, '%Y-%M-%d %H:%m:%S'),
+        'python': lambda x: to_datetime(x, False),
     },
     'Text': {
         'sqlalchemy': sqlalchemy.Text,
@@ -157,10 +165,7 @@ class SQLEdit(AnsibleModule):
         rows_after = self.select_rows()
         rows_after_len = len(rows_after)
         if self.params['state'] == 'select':
-            stmt = self.table.select()
-            stmt = self.where_keys(stmt)
             self.exit_json(changed=False,
-                           stmt=str(stmt),
                            rows=self.format_rows(rows_after))
         elif self.params['state'] == 'absent':
             if rows_after_len < 1:
