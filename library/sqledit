@@ -106,8 +106,11 @@ from ansible.module_utils.basic import *
 
 
 def to_datetime(x, date=False):
-    if not isinstance(x, datetime.datetime):  
-        x = datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+    if not isinstance(x, datetime.datetime):
+        if x.strip() == 'now':
+            x = datetime.datetime.now()
+        else:
+            x = datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     if date:
         return x.date()
     return x
@@ -239,7 +242,8 @@ class SQLEdit(AnsibleModule):
         stmt.execute()
 
     def init_sqlalchemy(self):
-        self.engine = sqlalchemy.create_engine(name_or_url=self.params['name'])
+        self.engine = sqlalchemy.create_engine(name_or_url=self.params['name'],
+            isolation_level='READ UNCOMMITTED')
         self.metadata = sqlalchemy.MetaData()
         self.metadata.bind = self.engine
 
