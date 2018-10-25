@@ -12,8 +12,10 @@
     filename: mariadb
 
 - name: Installation
-  apt: name="{{ item }}"
-  with_items:
-    - mariadb-server
-    - mariadb-client
-    - python-mysqldb
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+      - mariadb-server
+      - mariadb-client
+      - python-mysqldb
