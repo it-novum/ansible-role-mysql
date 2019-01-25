@@ -1,24 +1,43 @@
 - include_tasks: facts.yml
 
 - name: Create configuration directory
-  file: path={{ mysql_etc_d }} state=directory owner=root group=root mode=755
+  file:
+    path: "{{ mysql_etc_d }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
 
 # It is important to set innodb_log_file_size in the configuration before the first mysql launch!
 - name: mysql configuration
-  template: src=optimization.cnf.j2 dest={{ mysql_etc_d }}/zz_00_optimization.cnf
+  template:
+    src: optimization.cnf.j2
+    dest: "{{ mysql_etc_d }}/zz_00_optimization.cnf"
 
 - include_tasks: "{{ mysql_type }}-apt.yml"
   when: ansible_pkg_mgr == "apt"
 
 - name: Fetch root password
-  mysql_password_ini: path=/root/.my.cnf user=root
+  mysql_password_ini:
+    path: /root/.my.cnf
+    user: root
   register: mysql_data
 
 - name: Update root user
-  mysql_user: host=localhost user={{ mysql_data.user }} password={{ mysql_data.password }} check_implicit_admin=yes update_password=always
+  mysql_user:
+    host: localhost
+    user: "{{ mysql_data.user }}"
+    password: "{{ mysql_data.password }}"
+    check_implicit_admin: yes
+    update_password: always
 
 - name: Write mysql credentials
-  ini_file: dest=/root/.my.cnf section=client option={{ item.option }} value={{ item.value }} create=yes
+  ini_file:
+    dest: /root/.my.cnf
+    section: client
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    create: yes
   with_items:
     - option: user
       value: "{{ mysql_data.user }}"
@@ -26,10 +45,19 @@
       value: "{{ mysql_data.password }}"
 
 - name: Update root user for all hosts
-  mysql_user: host_all=yes user={{ mysql_data.user }} password={{ mysql_data.password }} update_password=always
+  mysql_user:
+    host_all: yes
+    user: "{{ mysql_data.user }}"
+    password: "{{ mysql_data.password }}"
+    update_password: always
 
 - name: Backup script
-  template: src=mysqlbackup.j2 dest=/usr/local/bin/mysqlbackup owner=root group=root mode=0755
+  template:
+    src: mysqlbackup.j2
+    dest: /usr/local/bin/mysqlbackup
+    owner: root
+    group: root
+    mode: 0755
 
 - name: Backup cronjob
   cron:
@@ -39,3 +67,27 @@
     job: /usr/local/bin/mysqlbackup
     minute: "{{ mysql_backup_minute }}"
     hour: "{{ mysql_backup_hour }}"
+
+- name: Create mysql systemd override directory
+  file:
+    path: /etc/systemd/system/mysql.service.d
+    state: directory
+    mode: 0755
+    owner: root
+    group: root
+
+- name: mysql systemd service tuning
+  copy:
+    src: mysql_tuning.conf
+    dest: /etc/systemd/system/mysql.service.d/mysql_tuning.conf
+  register: change_mysql_service
+
+- name: reload systemd config
+  systemd:
+    daemon_reload: yes
+  when: change_mysql_service.changed
+
+- name: vm.swappiness = 1
+  sysctl:
+    name: vm.swappiness
+    value: 1
