@@ -70,7 +70,7 @@
 
 - name: Create mysql systemd override directory
   file:
-    path: /etc/systemd/system/mysql.service.d
+    path: "{{  mysql_service_d|dirname }}"
     state: directory
     mode: 0755
     owner: root
@@ -79,7 +79,7 @@
 - name: mysql systemd service tuning
   copy:
     src: mysql_tuning.conf
-    dest: /etc/systemd/system/mysql.service.d/mysql_tuning.conf
+    dest: "{{  mysql_service_d }}"
   register: change_mysql_service
 
 - name: reload systemd config
