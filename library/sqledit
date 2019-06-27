@@ -35,9 +35,19 @@ options:
   state:
     description: >
                    present = insert/update, absent = delete,
-                   select = fetch columns, insert = always insert
+                   select = fetch columns, insert = always insert,
+                   count = select count
     required: false
     default: present
+  filter:
+    description: >
+                  advanced filter for select and count
+    required: false
+  distinct:
+    description: >
+                   if true, the select will be distinct
+    required: false
+    default: no
 '''
 
 EXAMPLES = '''
@@ -158,7 +168,9 @@ class SQLEdit(AnsibleModule):
                 keys=dict(required=True, aliases=['pk'], type='list'),
                 columns=dict(required=True, type='list'),
                 state=dict(default='present',
-                           choices=['present', 'absent', 'select', 'insert']),
+                           choices=['present', 'absent', 'select', 'insert', 'count']),
+                distinct=dict(default=False, type='bool'),
+                filter=dict(required=False, default={}, type='dict')
             ),
             supports_check_mode=True)
         if not HAS_SQLALCHEMY:
@@ -167,10 +179,10 @@ class SQLEdit(AnsibleModule):
         self.create_table()
         rows_after = self.select_rows()
         rows_after_len = len(rows_after)
-        if self.params['state'] == 'select':
+        if self.params.get('state') == 'select' or self.params.get('state') == 'count':
             self.exit_json(changed=False,
                            rows=self.format_rows(rows_after))
-        elif self.params['state'] == 'absent':
+        elif self.params.get('state') == 'absent':
             if rows_after_len < 1:
                 changed = False
             else:
@@ -178,7 +190,7 @@ class SQLEdit(AnsibleModule):
             if changed and not self.check_mode:
                 self.delete_rows()
             self.exit_json(changed=changed, rows=None)
-        elif self.params['state'] == 'insert':
+        elif self.params.get('state') == 'insert':
             changed = True
             if not self.check_mode:
                 self.insert_row()
@@ -225,6 +237,10 @@ class SQLEdit(AnsibleModule):
     def select_rows(self):
         stmt = self.table.select()
         stmt = self.where_keys(stmt)
+        if self.params.get('distinct'):
+            stmt = stmt.distinct()
+        if self.params.get('state') == 'count':
+            stmt = stmt.count()
         result = stmt.execute()
         return [row for row in result]
 
@@ -249,18 +265,18 @@ class SQLEdit(AnsibleModule):
         stmt.execute()
 
     def init_sqlalchemy(self):
-        self.engine = sqlalchemy.create_engine(name_or_url=self.params['name'],
+        self.engine = sqlalchemy.create_engine(name_or_url=self.params.get('name'),
             isolation_level='READ UNCOMMITTED')
         self.metadata = sqlalchemy.MetaData()
         self.metadata.bind = self.engine
 
     def create_table(self):
-        self.keys = self.params['keys']
+        self.keys = self.params.get('keys')
         self.new_values = {}
         self.type_for_column = {}
 
         columns = []
-        for arg in self.params['columns']:
+        for arg in self.params.get('columns'):
             column_name = arg['name']
             type_name = arg['type']
             try:
@@ -279,7 +295,7 @@ class SQLEdit(AnsibleModule):
                 self.new_values[column_name] = value
             self.type_for_column[column_name] = \
                 TYPE_FOR_NAME[type_name]
-        self.table = sqlalchemy.Table(self.params['table'],
+        self.table = sqlalchemy.Table(self.params.get('table'),
                                       self.metadata,
                                       *columns)
 

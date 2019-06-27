@@ -90,4 +90,4 @@
 - name: vm.swappiness = 1
   sysctl:
     name: vm.swappiness
-    value: 1
+    value: "1"
