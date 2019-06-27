@@ -42,6 +42,7 @@ options:
   filter:
     description: >
                   advanced filter for select and count
+                  it should support all column operators from sqlalchemy
     required: false
   distinct:
     description: >
@@ -101,6 +102,32 @@ EXAMPLES = '''
       - name: col3
         type: String
         value: dadada
+- sqledit:
+    name: "mysql://localhost/test?read_default_file=/root/.my.cnf"
+    table: test
+    keys:
+      - col1
+    filter:
+      and:
+        or:
+          eq:
+            column: col1
+            value: blubb
+          eq:
+            column: col1
+            value: bla
+        ne:
+          column: col2
+          value: 21
+        ilike:
+          column: col1
+          value: test%
+    columns:
+      - name: col1
+        type: String
+      - name: col2
+        type: Integer
+    state: select
 '''
 
 
@@ -299,20 +326,57 @@ class SQLEdit(AnsibleModule):
                                       self.metadata,
                                       *columns)
 
-    def where_keys(self, select):
+    def where_keys(self, stmt):
         args = []
         for col in self.keys:
+            new_value = None
+            has_value = False
             try:
-                key = getattr(self.table.c, col)
-                args.append(key == self.new_values[col])
-            except (AttributeError, KeyError) as e:
+                new_value = self.new_values[col]
+                has_value = True
+            except KeyError:
                 pass
-        if len(args) < 1:
-            return select
-        elif len(args) < 2:
-            return select.where(args[0])
-        else:
-            return select.where(sqlalchemy.sql.and_(*args))
+            if has_value:
+                args.append(self._where_column_helper(col) == self.new_values[col])
+
+        fltrs = self.params.get('filter')
+        if fltrs:
+            self._split_filter(args, fltrs)
+
+        if len(args) > 0:
+            stmt = stmt.where(*args)
+        return stmt
+
+    def _where_column_helper(self, column_name):
+        try:
+            return getattr(self.table.c, column_name)
+        except (AttributeError, KeyError) as e:
+            pass
+        raise ValueError('Column {} does not exist'.format(column_name))
+
+    def _split_filter(self, args, fltrs):
+        for key in fltrs:
+            if key == 'and':
+                sub_args = []
+                self._split_filter(sub_args, fltrs[key])
+                args.append(sqlalchemy.sql.and_(*sub_args))
+            elif key == 'or':
+                sub_args = []
+                self._split_filter(sub_args, fltrs[key])
+                args.append(sqlalchemy.sql.or_(*sub_args))
+            else:
+                column = self._where_column_helper(fltrs[key]['column'])
+                column_value = fltrs[key]['value']
+                if key == 'eq':
+                    args.append(column == column_value)
+                elif key == 'ne':
+                    args.append(column)
+                else:
+                    try:
+                        action = getattr(column, key)
+                    except (AttributeError, KeyError):
+                        raise ValueError('Unknown operator on column {}'.format(key))
+                    args.append(action(column_value))
 
 
 if __name__ == '__main__':
