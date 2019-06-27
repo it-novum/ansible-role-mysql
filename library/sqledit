@@ -343,8 +343,10 @@ class SQLEdit(AnsibleModule):
         if fltrs:
             self._split_filter(args, fltrs)
 
-        if len(args) > 0:
-            stmt = stmt.where(*args)
+        if len(args) > 1:
+            stmt = stmt.where(sqlalchemy.sql.and_(*args))
+        elif len(args) > 0:
+            stmt = stmt.where(sqlalchemy.sql.and_(*args))
         return stmt
 
     def _where_column_helper(self, column_name):
