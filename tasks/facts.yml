@@ -1,60 +1,68 @@
-- name:  Fact | mysql_configuration_version
-  set_fact: mysql_configuration_version=7
-  when: "mysql_type == 'vendor' or mysql_type == 'mariadb'"
+################################################
+## System
+################################################
+- block:
+  - set_fact:
+      mysql_configuration_version: "mariadb"
+      mysql_apt:
+        - mariadb-server
+        - mariadb-client
+        - python-mysqldb
+        - python-sqlalchemy
+      mysql_etc_d: "/etc/mysql/mariadb.conf.d"
+      mysql_service_d: "/etc/systemd/system/mariadb.service.d/mysql_tuning.conf"
+    when: ansible_distribution_release == "buster"
 
-- name: Fact | mysql_configuration_version
-  set_fact: mysql_configuration_version=5
-  when: >
-    mysql_type == 'system' and (
-      ansible_distribution == 'Ubuntu' and ansible_distribution_major_version|int <= 14 or
-      ansible_distribution == 'Debian' and ansible_distribution_major_version|int <= 8
-    )
+  - set_fact:
+      mysql_configuration_version: "mariadb"
+      mysql_apt:
+        - mariadb-server
+        - mariadb-client
+        - python-mysqldb
+        - python-sqlalchemy
+      mysql_etc_d: "/etc/mysql/mariadb.conf.d"
+      mysql_service_d: "/etc/systemd/system/mariadb.service.d/mysql_tuning.conf"
+    when: ansible_distribution_release == "stretch"
 
-- name: Fact | mysql_configuration_version
-  set_fact: mysql_configuration_version=7
-  when: >
-    (mysql_type == 'system' or mysql_type == 'system_mariadb') and (
-      ansible_distribution == 'Ubuntu' and ansible_distribution_major_version|int > 14 or
-      ansible_distribution == 'Debian' and ansible_distribution_major_version|int > 8
-    )
+  - set_fact:
+      mysql_configuration_version: "mysql"
+      mysql_apt:
+        - mysql-server
+        - mysql-client
+        - python-mysqldb
+        - python-sqlalchemy
+      mysql_etc_d: "/etc/mysql/mysql.conf.d"
+      mysql_service_d: "/etc/systemd/system/mysql.service.d/mysql_tuning.conf"
+    when: ansible_distribution_release == "xenial"
 
-- name: Fact | MySQL etc dir
-  set_fact: mysql_etc_d=/etc/mysql/conf.d
-  when: >
-    (mysql_configuration_version|int <= 5) or 
-    (mysql_type == "mariadb") or 
-    (
-      mysql_type == "system" and mysql_configuration_version|int >= 6 and 
-      ansible_distribution == "Ubuntu" and ansible_distribution_major_version|int <= 14
-    )
+  - set_fact:
+      mysql_configuration_version: "mysql"
+      mysql_apt:
+        - mysql-server
+        - mysql-client
+        - python-mysqldb
+        - python-sqlalchemy
+      mysql_etc_d: "/etc/mysql/mysql.conf.d"
+      mysql_service_d: "/etc/systemd/system/mysql.service.d/mysql_tuning.conf"
+    when: ansible_distribution_release == "bionic"
+  when: not mysql_vendor is defined
 
-- name: Fact | MySQL etc dir
-  set_fact: mysql_etc_d=/etc/mysql/mysql.conf.d
-  when: >
-    mysql_type == "vendor" or 
-    (
-      mysql_type == "system" and mysql_configuration_version|int > 5 and 
-      not (ansible_distribution == "Ubuntu" and ansible_distribution_major_version|int <= 14)
-    )
+################################################
+## MariaDB
+################################################
 
-- name: Fact | MariaDB etc dir
-  set_fact: mysql_etc_d=/etc/mysql/mariadb.conf.d
-  when: >
-    (mysql_type == "system" and ansible_distribution == 'Debian' and ansible_distribution_major_version|int >= 9)
-    or mysql_type == "system_mariadb"
-
-- name: Fact | MySQL service override
-  set_fact: mysql_service_d=/etc/systemd/system/mysql.service.d/mysql_tuning.conf
-  when: >
-    mysql_type == "vendor" or
-    (mysql_type == "system" and ansible_distribution == "Debian" and ansible_distribution_major_version|int < 9) or
-    (mysql_type == "system" and ansible_distribution == "Ubuntu")
-
-
-- name: Fact | MariaDB service override
-  set_fact: mysql_service_d=/etc/systemd/system/mariadb.service.d/mysql_tuning.conf
-  when: >
-    (mysql_type == "system" and ansible_distribution == 'Debian' and ansible_distribution_major_version|int >= 9) or
-    mysql_type == "system_mariadb" or
-    mysql_type == "mariadb"
-
+- set_fact:
+    mysql_configuration_version: "mariadb"
+    mysql_apt:
+      - mariadb-server
+      - mariadb-client
+      - python-mysqldb
+      - python-sqlalchemy
+    mysql_apt_repo: "deb [arch=amd64,i386] http://ftp.hosteurope.de/mirror/mariadb.org/repo/10.4/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} main"
+    mysql_apt_repo_filename: "mariadb"
+    mysql_apt_keys:
+      - "0xF1656F24C74CD1D8"
+      - "0xcbcb082a1bb943db"
+    mysql_etc_d: "/etc/mysql/conf.d"
+    mysql_service_d: "/etc/systemd/system/mariadb.service.d/mysql_tuning.conf"
+  when: mysql_vendor is defined and mysql_vendor == "mariadb"

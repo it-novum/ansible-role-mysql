@@ -1,8 +1,0 @@
-- name: Installation
-  apt:
-    name: "{{ packages }}"
-  vars:
-    packages:
-      - mysql-server
-      - mysql-client
-      - python-mysqldb

@@ -14,8 +14,22 @@
     src: optimization.cnf.j2
     dest: "{{ mysql_etc_d }}/zz_00_optimization.cnf"
 
-- include_tasks: "{{ mysql_type }}-apt.yml"
-  when: ansible_pkg_mgr == "apt"
+- name: MySQL Repository Key
+  apt_key:
+    keyserver: keyserver.ubuntu.com
+    id: "{{ item }}"
+  with_items: "{{ mysql_apt_keys }}"
+  when: mysql_apt_keys is defined
+
+- name: MySQL Repository
+  apt_repository:
+    repo: "{{ mysql_apt_repo }}"
+    filename: "{{ mysql_apt_repo_filename }}"
+  when: mysql_apt_repo is defined
+
+- name: MySQL Installation
+  apt:
+    name: "{{ mysql_apt }}"
 
 - name: Fetch root password
   mysql_password_ini:
