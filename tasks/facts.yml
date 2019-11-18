@@ -9,6 +9,7 @@
         - mariadb-client
         - python-mysqldb
         - python-sqlalchemy
+        - python-pymysql
       mysql_etc_d: "/etc/mysql/mariadb.conf.d"
       mysql_service_d: "/etc/systemd/system/mariadb.service.d/mysql_tuning.conf"
     when: ansible_distribution_release == "buster"
@@ -20,6 +21,7 @@
         - mariadb-client
         - python-mysqldb
         - python-sqlalchemy
+        - python-pymysql
       mysql_etc_d: "/etc/mysql/mariadb.conf.d"
       mysql_service_d: "/etc/systemd/system/mariadb.service.d/mysql_tuning.conf"
     when: ansible_distribution_release == "stretch"
@@ -31,6 +33,7 @@
         - mysql-client
         - python-mysqldb
         - python-sqlalchemy
+        - python-pymysql
       mysql_etc_d: "/etc/mysql/mysql.conf.d"
       mysql_service_d: "/etc/systemd/system/mysql.service.d/mysql_tuning.conf"
     when: ansible_distribution_release == "xenial"
@@ -42,6 +45,7 @@
         - mysql-client
         - python-mysqldb
         - python-sqlalchemy
+        - python-pymysql
       mysql_etc_d: "/etc/mysql/mysql.conf.d"
       mysql_service_d: "/etc/systemd/system/mysql.service.d/mysql_tuning.conf"
     when: ansible_distribution_release == "bionic"
@@ -58,6 +62,7 @@
       - mariadb-client
       - python-mysqldb
       - python-sqlalchemy
+      - python-pymysql
     mysql_apt_repo: "deb [arch=amd64,i386] http://ftp.hosteurope.de/mirror/mariadb.org/repo/10.4/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} main"
     mysql_apt_repo_filename: "mariadb"
     mysql_apt_keys:
