@@ -44,7 +44,7 @@
     password: "{{ mysql_data.password }}"
     check_implicit_admin: yes
     update_password: always
-    login_unix_socket: /var/run/mysqld/mysql.sock
+    login_unix_socket: /run/mysqld/mysqld.sock
 
 - name: Write mysql credentials
   ini_file:
@@ -66,7 +66,7 @@
     password: "{{ mysql_data.password }}"
     update_password: always
     check_implicit_admin: yes
-    login_unix_socket: /var/run/mysqld/mysql.sock
+    login_unix_socket: /run/mysqld/mysqld.sock
 
 - name: Backup script
   template:
