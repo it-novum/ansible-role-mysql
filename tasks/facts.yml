@@ -27,7 +27,7 @@
     when: ansible_distribution_release == "stretch"
 
   - set_fact:
-      mysql_configuration_version: "mysql"
+      mysql_configuration_version: "mysql57"
       mysql_apt:
         - mysql-server
         - mysql-client
@@ -39,7 +39,7 @@
     when: ansible_distribution_release == "xenial"
 
   - set_fact:
-      mysql_configuration_version: "mysql"
+      mysql_configuration_version: "mysql57"
       mysql_apt:
         - mysql-server
         - mysql-client
@@ -49,6 +49,18 @@
       mysql_etc_d: "/etc/mysql/mysql.conf.d"
       mysql_service_d: "/etc/systemd/system/mysql.service.d/mysql_tuning.conf"
     when: ansible_distribution_release == "bionic"
+
+  - set_fact:
+      mysql_configuration_version: "mysql8"
+      mysql_apt:
+        - mysql-server
+        - mysql-client
+        - python3-mysqldb
+        - python3-sqlalchemy
+        - python3-pymysql
+      mysql_etc_d: "/etc/mysql/mysql.conf.d"
+      mysql_service_d: "/etc/systemd/system/mysql.service.d/mysql_tuning.conf"
+    when: ansible_distribution_release == "focal"
   when: not mysql_vendor is defined
 
 ################################################

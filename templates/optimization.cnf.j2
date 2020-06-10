@@ -10,19 +10,19 @@ innodb_flush_method = {{innodb_flush_method|default('O_DIRECT')}}
 innodb_log_file_size = 512M
 innodb_sort_buffer_size = 64M
 
-{% if mysql_configuration_version|int >= 6 %}
 innodb_io_capacity = {{ innodb_io_capacity|default('200') }}
 innodb_buffer_pool_instances = {{ innodb_buffer_pool_instances|default('8') }}
-{% endif %}
 
 max_heap_table_size = 64M
 tmp_table_size = 64M
 
+{% if mysql_configuration_version != "mysql8" %}
 # query cache is deprecated
 query_cache_type = 0
 # query_cache_min_res_unit = 4096
 # query_cache_limit = 16M
 # query_cache_size = 64M
+{% endif %}
 
 table_definition_cache = 2000
 table_open_cache = 2000
