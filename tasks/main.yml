@@ -16,8 +16,7 @@
 
 - name: MySQL Repository Key
   apt_key:
-    keyserver: keyserver.ubuntu.com
-    id: "{{ item }}"
+    data: "{{ item }}"
   with_items: "{{ mysql_apt_keys }}"
   when: mysql_apt_keys is defined
 
