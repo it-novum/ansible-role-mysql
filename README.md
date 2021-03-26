@@ -6,7 +6,7 @@
 * mysql_backup_delete_after: Days after which dumps will be deleted (default: 7)
 * mysql_backup_minute: Minute when the cron will be executed which will create the dump (default: 11)
 * mysql_backup_hour: Hour when the cron will be executed which will create the dump (default: 3)
-* mysql_type: Choose between system (from distribution repository), vendor (from oracle mysql repository) or mariadb (from mariadb repository)
+* mysql_vendor: If set to mariadb it will use mariadb official repos
 
 #### Special notes on mysqlbackup
 
